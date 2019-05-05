@@ -1,0 +1,9 @@
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\bin\Debug\netstandard2.0\DeribitNet.deps.json
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\bin\Debug\netstandard2.0\DeribitNet.dll
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\obj\Debug\netstandard2.0\DeribitNet.csprojAssemblyReference.cache
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\obj\Debug\netstandard2.0\DeribitNet.csproj.CoreCompileInputs.cache
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\obj\Debug\netstandard2.0\DeribitNet.AssemblyInfoInputs.cache
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\obj\Debug\netstandard2.0\DeribitNet.AssemblyInfo.cs
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\bin\Debug\netstandard2.0\DeribitNet.pdb
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\obj\Debug\netstandard2.0\DeribitNet.dll
+C:\Users\Avram\source\repos\DeribitNet\DeribitNet\DeribitNet\obj\Debug\netstandard2.0\DeribitNet.pdb
