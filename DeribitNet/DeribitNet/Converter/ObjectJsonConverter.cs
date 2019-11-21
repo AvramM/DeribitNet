@@ -1,6 +1,7 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using DeribitNet.Converter;
+using Newtonsoft.Json.Linq;
 
-namespace DeribitNet.Converter
+namespace XCoinr.Trading.UI.Deribit.Converter
 {
     public class ObjectJsonConverter<T> : JsonConverter<T>
     {

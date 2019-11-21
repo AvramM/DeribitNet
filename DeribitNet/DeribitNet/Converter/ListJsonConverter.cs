@@ -1,7 +1,8 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using DeribitNet.Converter;
+using Newtonsoft.Json.Linq;
 
-namespace DeribitNet.Converter
+namespace XCoinr.Trading.UI.Deribit.Converter
 {
     public class ListJsonConverter<T> : JsonConverter<List<T>>
     {

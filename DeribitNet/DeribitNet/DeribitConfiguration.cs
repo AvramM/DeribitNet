@@ -1,14 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DeribitNet
+﻿namespace DeribitNet
 {
     public class DeribitConfiguration
     {
-        public string DeribitDomain => "deribit.com";
-        public string DeribitV2WebSocketApiEndpoint => "wss://" + DeribitDomain + "/ws/api/v2/";
-        public string DeribitAjaxRestApiEndpoint => "https://" + DeribitDomain + "/ajax?";
-        public string DeribitV2RestApiEndpoint => "https://" + DeribitDomain + "/api/v2/";
+        public string GetDeribitDomain()
+        {
+            return "www.deribit.com";
+        }
+
+        public string GetDeribitV2WebSocketApiEndpoint()
+        {
+            return "wss://" + GetDeribitDomain() + "/ws/api/v1/";
+        }
+
+        public string GetDeribitAjaxRestApiEndpoint()
+        {
+            return "https://" + GetDeribitDomain() + "/ajax?";
+        }
+
+        public string GetDeribitV1RestApiEndpoint()
+        {
+            return "https://" + GetDeribitDomain() + "/api/v1/";
+        }
     }
 }

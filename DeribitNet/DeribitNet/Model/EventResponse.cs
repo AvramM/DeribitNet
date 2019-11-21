@@ -1,6 +1,4 @@
-﻿using DeribitNet.Model;
-
-namespace DeribitNet.Model
+﻿namespace DeribitNet.Model
 {
     public class EventResponse
     {

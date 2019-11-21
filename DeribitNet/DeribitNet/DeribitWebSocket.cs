@@ -1,22 +1,23 @@
-﻿using Common.Logging;
-using DeribitNet.Converter;
-using DeribitNet.Model;
-using DeribitNet.Utils;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DeribitNet.Model;
+using DeribitNet.Utils;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
+using XCoinr.Trading.UI.Deribit.Converter;
 
 namespace DeribitNet
 {
+
     public class DeribitWebSocket
     {
-        private static ILog _log = LogManager.GetLogger<DeribitWebSocket>();
         private readonly DeribitConfiguration _config;
         private ClientWebSocket _websocket;
         private int _requestId;
@@ -26,7 +27,7 @@ namespace DeribitNet
         private bool _isRunningSendingMessageQueue;
         private readonly UTF8Encoding _encoding;
         private readonly object _eventsMapLock;
-        private readonly Dictionary<string, SubscriptionEntry> _eventsMap;
+        private readonly Dictionary<string, SubscribtionEntry> _eventsMap;
         public event EventHandler DisconnectEvent;
 
         public DeribitWebSocket(DeribitConfiguration config)
@@ -38,7 +39,7 @@ namespace DeribitNet
             _messagesToSend = new Queue<MessageInfo>();
             _encoding = new UTF8Encoding();
             _eventsMapLock = new object();
-            _eventsMap = new Dictionary<string, SubscriptionEntry>();
+            _eventsMap = new Dictionary<string, SubscribtionEntry>();
         }
 
         public async Task Connect()
@@ -47,16 +48,18 @@ namespace DeribitNet
             {
                 return;
             }
+
             _websocket = new ClientWebSocket();
-            _log.Debug("Connecting to v2 websocket");
-            await _websocket.ConnectAsync(new Uri(_config.DeribitV2WebSocketApiEndpoint), CancellationToken.None);
-            _log.Debug("Connected to v2 websocket");
-            Task.Factory.StartNew(receiveMessageQueue, TaskCreationOptions.LongRunning);            
-            Task.Factory.StartNew(reconnectLoop, TaskCreationOptions.LongRunning);
-            Task.Factory.StartNew(pingLoop, TaskCreationOptions.LongRunning);
+            Console.WriteLine("Connecting to v2 websocket");
+            var url = _config.GetDeribitV2WebSocketApiEndpoint();
+            _websocket.ConnectAsync(new Uri("wss://www.deribit.com/ws/api/v2/"), CancellationToken.None).Wait();
+            Console.WriteLine("Connected to v2 websocket");
+            Task.Run(receiveMessageQueue);
+            Task.Run(reconnectLoop);
+            Task.Run(pingLoop);
             foreach (var entry in _eventsMap)
             {
-                entry.Value.State = SubscriptionState.Unsubscribed;
+                entry.Value.State = SubscribtionState.Unsubscribed;
                 Task.Run(() => ManagedSubscribe(entry.Key, null));
             }
         }
@@ -70,7 +73,7 @@ namespace DeribitNet
                 {
                     return;
                 }
-                //_log.Debug($"WebSocket status {_websocket.State}");
+                Console.WriteLine($"WebSocket status {_websocket.State}");
                 if (_websocket.State != WebSocketState.Open)
                 {
                     Disconnect();
@@ -81,7 +84,7 @@ namespace DeribitNet
 
         public void Disconnect()
         {
-            _log.Debug($"WebSocket Disconnect");
+            Console.WriteLine($"WebSocket Disconnect");
             if (_websocket != null)
             {
                 _websocket.Dispose();
@@ -92,6 +95,7 @@ namespace DeribitNet
 
         public Task<T> Send<T>(string method, object @params, Converter.JsonConverter<T> converter)
         {
+            Console.WriteLine("Calling " + method);
             var request = new JsonRpcRequest()
             {
                 jsonrpc = "2.0",
@@ -109,7 +113,7 @@ namespace DeribitNet
             _tasks[request.id] = taskInfo;
             var message = JsonConvert.SerializeObject(request);
             byte[] buffer = _encoding.GetBytes(message);
-            //_log.Debug($"Send task {method} {request.id} {message}");
+            Console.WriteLine($"Send task {method} {request.id} {message}");
             pushMessage(taskInfo, buffer);
             return tcs.Task;
         }
@@ -142,7 +146,7 @@ namespace DeribitNet
                     return;
                 }
                 var res = await Ping();
-                //_log.Debug($"Ping - {res}");
+                Console.WriteLine($"Ping - {res}");
             }
         }
 
@@ -162,9 +166,9 @@ namespace DeribitNet
             {
                 if (!_eventsMap.ContainsKey(channel))
                 {
-                    _eventsMap[channel] = new SubscriptionEntry()
+                    _eventsMap[channel] = new SubscribtionEntry()
                     {
-                        State = SubscriptionState.Unsubscribed,
+                        State = SubscribtionState.Unsubscribed,
                         Callbacks = new List<Action<EventResponse>>()
                     };
                 }
@@ -185,42 +189,42 @@ namespace DeribitNet
 
         public async Task<bool> ManagedSubscribe(string channel, Action<EventResponse> callback)
         {
-            SubscriptionEntry entry;
+            SubscribtionEntry entry;
             TaskCompletionSource<bool> defer = null;
             lock (_eventsMapLock)
             {
                 if (_eventsMap.ContainsKey(channel))
                 {
                     entry = _eventsMap[channel];
-                    if (entry.State == SubscriptionState.Subscribed)
+                    if (entry.State == SubscribtionState.Subscribed)
                     {
-                        //_log.Debug($"Already subsribed added to callbacks {channel}");
+                        Console.WriteLine($"Already subsribed added to callbacks {channel}");
                         if (callback != null)
                         {
                             entry.Callbacks.Add(callback);
                         }
                         return true;
                     }
-                    if (entry.State == SubscriptionState.Unsubscribing)
+                    if (entry.State == SubscribtionState.Unsubscribing)
                     {
-                        //_log.Debug($"Unsubscribing return false {channel}");
+                        Console.WriteLine($"Unsubscribing return false {channel}");
                         return false;
                     }
-                    if (entry.State == SubscriptionState.Unsubscribed)
+                    if (entry.State == SubscribtionState.Unsubscribed)
                     {
-                        //_log.Debug($"Unsubscribed resubscribing {channel}");
-                        entry.State = SubscriptionState.Subscribing;
+                        Console.WriteLine($"Unsubscribed resubscribing {channel}");
+                        entry.State = SubscribtionState.Subscribing;
                         defer = new TaskCompletionSource<bool>();
                         entry.CurrentAction = defer.Task;
                     }
                 }
                 else
                 {
-                    //_log.Debug($"Not exists subscribing {channel}");
+                    Console.WriteLine($"Not exists subscribing {channel}");
                     defer = new TaskCompletionSource<bool>();
-                    entry = new SubscriptionEntry()
+                    entry = new SubscribtionEntry()
                     {
-                        State = SubscriptionState.Subscribing,
+                        State = SubscribtionState.Subscribing,
                         Callbacks = new List<Action<EventResponse>>(),
                         CurrentAction = defer.Task
                     };
@@ -229,15 +233,15 @@ namespace DeribitNet
             }
             if (defer == null)
             {
-                //_log.Debug($"Empty defer wait for already subscribing {channel}");
+                Console.WriteLine($"Empty defer wait for already subscribing {channel}");
                 var currentAction = entry.CurrentAction;
                 var result = currentAction != null ? await currentAction : false;
-                //_log.Debug($"Empty defer wait for already subscribing res {result} {channel}");
+                Console.WriteLine($"Empty defer wait for already subscribing res {result} {channel}");
                 lock (_eventsMapLock)
                 {
-                    if (result && entry.State == SubscriptionState.Subscribed)
+                    if (result && entry.State == SubscribtionState.Subscribed)
                     {
-                        //_log.Debug($"Empty defer adding callback {channel}");
+                        Console.WriteLine($"Empty defer adding callback {channel}");
                         if (callback != null)
                         {
                             entry.Callbacks.Add(callback);
@@ -249,19 +253,19 @@ namespace DeribitNet
             }
             try
             {
-                //_log.Debug($"Subscribing {channel}");
+                Console.WriteLine($"Subscribing {channel}");
                 var response = await Subscribe(new string[] { channel });
                 if (response.Count != 1 || response[0] != channel)
                 {
-                    //_log.Debug($"Invalid subscribe result {response} {channel}");
+                    Console.WriteLine($"Invalid subscribe result {response} {channel}");
                     defer.SetResult(false);
                 }
                 else
                 {
                     lock (_eventsMapLock)
                     {
-                        //_log.Debug($"Successfully subscribed adding callback {channel}");
-                        entry.State = SubscriptionState.Subscribed;
+                        Console.WriteLine($"Successfully subscribed adding callback {channel}");
+                        entry.State = SubscribtionState.Subscribed;
                         if (callback != null)
                         {
                             entry.Callbacks.Add(callback);
@@ -280,7 +284,7 @@ namespace DeribitNet
 
         public async Task<bool> ManagedUnsubscribe(string channel, Action<EventResponse> callback)
         {
-            SubscriptionEntry entry;
+            SubscribtionEntry entry;
             TaskCompletionSource<bool> defer = null;
             lock (_eventsMapLock)
             {
@@ -293,23 +297,23 @@ namespace DeribitNet
                 {
                     return false;
                 }
-                if (entry.State == SubscriptionState.Subscribing)
+                if (entry.State == SubscribtionState.Subscribing)
                 {
                     return false;
                 }
-                if (entry.State == SubscriptionState.Unsubscribed || entry.State == SubscriptionState.Unsubscribing)
+                if (entry.State == SubscribtionState.Unsubscribed || entry.State == SubscribtionState.Unsubscribing)
                 {
                     entry.Callbacks.Remove(callback);
                     return true;
                 }
-                if (entry.State == SubscriptionState.Subscribed)
+                if (entry.State == SubscribtionState.Subscribed)
                 {
                     if (entry.Callbacks.Count > 1)
                     {
                         entry.Callbacks.Remove(callback);
                         return true;
                     }
-                    entry.State = SubscriptionState.Unsubscribing;
+                    entry.State = SubscribtionState.Unsubscribing;
                     defer = new TaskCompletionSource<bool>();
                     entry.CurrentAction = defer.Task;
                 }
@@ -325,7 +329,7 @@ namespace DeribitNet
                 {
                     lock (_eventsMapLock)
                     {
-                        entry.State = SubscriptionState.Unsubscribed;
+                        entry.State = SubscribtionState.Unsubscribed;
                         entry.Callbacks.Remove(callback);
                         entry.CurrentAction = null;
                     }
@@ -386,13 +390,13 @@ namespace DeribitNet
                         TaskInfo task = null;
                         try
                         {
-                            //_log.Debug($"ReceiveMessageQueue message {res}");
-                            var jObject = (JObject)JsonConvert.DeserializeObject(res);
+                            Console.WriteLine($"ReceiveMessageQueue message {res}");
+                            var jObject = (JObject)JsonConvert.DeserializeObject(res, ConverterSettings.Settings);
                             if (jObject.ContainsKey("params"))
                             {
                                 var eventRes = jObject.ToObject<EventResponse>();
-                                //_log.Debug($"ReceiveMessageQueue event {eventRes.@event}");
-                                SubscriptionEntry entry;
+                                //_logger.Debug($"ReceiveMessageQueue event {eventRes.@event}");
+                                SubscribtionEntry entry;
                                 if (_eventsMap.TryGetValue(eventRes.@params.channel, out entry))
                                 {
                                     foreach (var callback in entry.Callbacks)
@@ -403,7 +407,7 @@ namespace DeribitNet
                                         }
                                         catch (Exception e)
                                         {
-                                            _log.Debug($"ReceiveMessageQueue Error during calling event callback {eventRes.@params.channel} {e}");
+                                            //_logger.Debug($"ReceiveMessageQueue Error during calling event callback {eventRes.@params.channel} {e}");
                                         }
                                     }
                                 }
@@ -411,7 +415,7 @@ namespace DeribitNet
                             else
                             {
                                 var parsedResult = jObject.ToObject<JsonRpcResponse>();
-                                //_log.Debug($"ReceiveMessageQueue task {parsedResult.id}");
+                                Console.WriteLine($"ReceiveMessageQueue task {parsedResult.id}");
                                 if (_tasks.TryRemove(parsedResult.id, out task))
                                 {
                                     if (parsedResult.error != null)
@@ -429,19 +433,19 @@ namespace DeribitNet
                                     else
                                     {
                                         var convertedResult = task.Convert(parsedResult.result);
-                                        //_log.Debug($"ReceiveMessageQueue task resolve {parsedResult.id}");
+                                        Console.WriteLine($"ReceiveMessageQueue task resolve {parsedResult.id}");
                                         task.Resolve(convertedResult);
                                     }
                                 }
                                 else
                                 {
-                                    _log.Debug($"ReceiveMessageQueue cannot resolve task {parsedResult.id}");
+                                    Console.WriteLine($"ReceiveMessageQueue cannot resolve task {parsedResult.id}");
                                 }
                             }
                         }
                         catch (Exception e)
                         {
-                            _log.Debug($"ReceiveMessageQueue Error during parsing task {e}");
+                            Console.WriteLine($"ReceiveMessageQueue Error during parsing task {e}");
                             if (task != null)
                             {
                                 task.Reject(e);
@@ -455,5 +459,18 @@ namespace DeribitNet
                 }
             }
         }
+    }
+
+    internal static class ConverterSettings
+    {
+        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
+        {
+            MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
+            DateParseHandling = DateParseHandling.DateTimeOffset,
+            Converters =
+            {
+                new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
+            },
+        };
     }
 }
